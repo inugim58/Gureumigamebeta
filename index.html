@@ -18,46 +18,50 @@
             background: #101010;
         }
         #controls {
-    position: absolute;
+    position: fixed; /* 캔버스 크기와 관계없이 화면에 고정 */
     bottom: 20px;
     left: 20px;
-    user-select: none; /* 터치 시 텍스트 선택 방지 */
+    user-select: none;
+    z-index: 10; /* 캔버스 위에 확실히 표시 */
 }
 
 .dpad-button, #action-button {
-    width: 60px;
-    height: 60px;
-    background-color: rgba(0, 0, 0, 0.5);
+    /* 버튼 기본 크기 및 스타일 확대 */
+    width: 80px; 
+    height: 80px; 
+    background-color: rgba(0, 0, 0, 0.6); /* 투명도 약간 낮춰 시인성 확보 */
     color: white;
-    border: 2px solid white;
-    border-radius: 10px;
+    border: 3px solid #ffaa00; /* 테두리 강조 */
+    border-radius: 12px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 1.5em;
+    font-size: 2em; /* 폰트 크기 확대 */
     position: absolute;
-    touch-action: manipulation; /* 스크롤 방지 */
+    touch-action: manipulation;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* 방향 버튼 위치 */
-#up-button { top: 0; left: 60px; }
-#down-button { top: 120px; left: 60px; }
-#left-button { top: 60px; left: 0; }
-#right-button { top: 60px; left: 120px; }
+/* 방향 버튼 간격 조정 및 크기 확대 */
+#up-button { top: 0; left: 80px; }
+#down-button { top: 160px; left: 80px; }
+#left-button { top: 80px; left: 0; }
+#right-button { top: 80px; left: 160px; }
 
-/* 액션 버튼 위치 (화면 오른쪽) */
+/* 액션 버튼 위치 및 크기 확대 (화면 오른쪽 하단) */
 #action-button {
-    top: 50%;
-    right: 20px;
-    transform: translateY(-50%);
-    width: 80px;
-    height: 80px;
+    position: fixed;
+    bottom: 40px; 
+    right: 40px; 
+    width: 100px;
+    height: 100px;
     border-radius: 50%; /* 원형 버튼 */
     font-size: 1.2em;
-    position: fixed; /* 캔버스 크기에 관계없이 고정 */
-    bottom: 50px;
-    left: auto;
+    font-weight: bold;
+    background-color: rgba(0, 50, 200, 0.7); /* 색상 변경 */
+    border: 3px solid #00FFFF;
 }
+
     </style>
 </head>
 <body>
