@@ -104,7 +104,7 @@ document.addEventListener('keyup', (e) => {
     keys[e.code] = false;
 });
 
-// 💡 [추가] 모바일 터치 입력 처리
+// 💡 [수정] 모바일 터치 입력 처리 (터치 시 스크롤/줌 방지 강화)
 const handleTouchControls = () => {
     const buttons = document.querySelectorAll('.dpad-button, #action-button');
 
@@ -112,9 +112,10 @@ const handleTouchControls = () => {
         const key = button.getAttribute('data-key');
         
         const startHandler = (e) => {
+            // 터치 시작 시 브라우저 기본 동작(스크롤, 줌)을 막아 터치 영역 문제를 해결
             e.preventDefault(); 
             mobileKeys[key] = true;
-            // Space 키는 누른 순간 checkInteraction()을 실행해야 하므로 여기서 한 번 실행
+            // Space 키는 누른 순간 checkInteraction()을 실행
             if (key === 'Space') {
                 checkInteraction();
             }
@@ -124,12 +125,13 @@ const handleTouchControls = () => {
             e.preventDefault();
             mobileKeys[key] = false;
         };
-
+        
+        // 터치 이벤트
         button.addEventListener('touchstart', startHandler);
         button.addEventListener('touchend', endHandler);
         button.addEventListener('touchcancel', endHandler);
         
-        // 마우스 클릭도 지원
+        // 마우스 클릭 (PC 테스트용)
         button.addEventListener('mousedown', startHandler);
         button.addEventListener('mouseup', endHandler);
         button.addEventListener('mouseleave', endHandler); 
