@@ -77,15 +77,25 @@ let interactionMessage = {
 };
 
 // 8. 게임 상태 변수
-let gameStatus = 'TITLE'; // 'TITLE', 'PLAYING', 'GAME_OVER', 'SUCCESS' 💡 [수정]
+let gameStatus = 'TITLE'; // 'TITLE', 'PLAYING', 'GAME_OVER', 'SUCCESS'
 
 // 9. 키보드 상태 객체
 let keys = {};
+
+// 💡 [추가] 모바일 버튼 상태
+let mobileKeys = {
+    'ArrowUp': false,
+    'ArrowDown': false,
+    'ArrowLeft': false,
+    'ArrowRight': false,
+    'Space': false
+};
 
 // =========================================================
 // 10. 입력 처리 (이벤트 리스너)
 // =========================================================
 
+// 키보드 입력 처리
 document.addEventListener('keydown', (e) => {
     keys[e.code] = true;
 });
@@ -93,6 +103,38 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     keys[e.code] = false;
 });
+
+// 💡 [추가] 모바일 터치 입력 처리
+const handleTouchControls = () => {
+    const buttons = document.querySelectorAll('.dpad-button, #action-button');
+
+    buttons.forEach(button => {
+        const key = button.getAttribute('data-key');
+        
+        const startHandler = (e) => {
+            e.preventDefault(); 
+            mobileKeys[key] = true;
+            // Space 키는 누른 순간 checkInteraction()을 실행해야 하므로 여기서 한 번 실행
+            if (key === 'Space') {
+                checkInteraction();
+            }
+        };
+
+        const endHandler = (e) => {
+            e.preventDefault();
+            mobileKeys[key] = false;
+        };
+
+        button.addEventListener('touchstart', startHandler);
+        button.addEventListener('touchend', endHandler);
+        button.addEventListener('touchcancel', endHandler);
+        
+        // 마우스 클릭도 지원
+        button.addEventListener('mousedown', startHandler);
+        button.addEventListener('mouseup', endHandler);
+        button.addEventListener('mouseleave', endHandler); 
+    });
+};
 
 // =========================================================
 // 11. 핵심 게임 로직 함수
@@ -145,29 +187,35 @@ function handleInput() {
         player.dx = 0;
         player.dy = 0;
 
-        if (keys['ArrowUp']) {
+        // 💡 [수정] 키보드 입력과 모바일 입력 모두 확인
+        if (keys['ArrowUp'] || mobileKeys['ArrowUp']) {
             player.dy = -player.speed;
             player.direction = 'back';
-        } else if (keys['ArrowDown']) {
+        } else if (keys['ArrowDown'] || mobileKeys['ArrowDown']) {
             player.dy = player.speed;
             player.direction = 'front';
         }
 
-        if (keys['ArrowLeft']) {
+        if (keys['ArrowLeft'] || mobileKeys['ArrowLeft']) {
             player.dx = -player.speed;
             player.direction = 'left';
-        } else if (keys['ArrowRight']) {
+        } else if (keys['ArrowRight'] || mobileKeys['ArrowRight']) {
             player.dx = player.speed;
             player.direction = 'right';
         }
     }
     
-    // 스페이스 바 상호작용 처리
+    // 스페이스 바 상호작용 처리 (키보드는 checkInteraction()을 여기서 호출)
     if (keys['Space']) { 
         checkInteraction();
     }
     
+    // 💡 [수정] 키보드 스페이스바 입력은 프레임당 한 번만 처리되도록 초기화
     keys['Space'] = false; 
+    
+    // 💡 [추가] 모바일 스페이스바 입력은 터치 이벤트에서 처리하므로, 여기서 바로 초기화
+    // (터치 이벤트는 startHandler에서 checkInteraction()을 호출하고, endHandler에서 mobileKeys['Space']를 false로 만듦)
+    // 따라서, mobileKeys['Space']는 별도로 초기화하지 않고 터치 이벤트에 맡깁니다.
 }
 
 // 플레이어와 TV 간의 상호작용 확인 함수
@@ -256,7 +304,7 @@ function checkAppleCollision() {
             apples.splice(i, 1); 
             score++; 
 
-            // 💡 [수정] 성공 조건 체크
+            // 성공 조건 체크
             if (score >= SUCCESS_SCORE) {
                 gameStatus = 'SUCCESS'; // SUCCESS 상태 설정 및 유지
                 apples = []; // 성공 시 사과 제거
@@ -265,9 +313,9 @@ function checkAppleCollision() {
                 interactionMessage.timer = 300; 
                 player.dx = 0;
                 player.dy = 0;
-                gameStatus = 'TITLE';
-                // gameStatus = 'PLAYING'; <--- 삭제됨
-                return; // 성공 시 루프 종료 및 다음 로직 스킵
+                // 💡 [수정] 성공 후 TITLE 상태로 즉시 변경하지 않음. SUCCESS 상태를 유지하여 메시지를 표시하고, 
+                // TV 상호작용 시 TITLE -> PLAYING으로 전환됨. (이전 코드에서 TITLE로 바꾼 줄은 제거했습니다.)
+                return; 
             }
             
             // 사과를 먹을 때마다 새 사과 1개 리젠
@@ -324,7 +372,7 @@ function drawScoreOnTV() {
         ctx.fillText(`목표: ${SUCCESS_SCORE}개`, centerX, centerY + 30); // 목표 점수 표시
     } else if (gameStatus === 'TITLE') {
          ctx.font = '14px Arial';
-         ctx.fillText(`SPACE 눌러 시작`, centerX, centerY + 5);
+         ctx.fillText(`SPACE/ACTION 눌러 시작`, centerX, centerY + 5);
          ctx.font = '12px Arial';
          ctx.fillStyle = '#FFFFFF';
          ctx.fillText(`목표: ${SUCCESS_SCORE}개`, centerX, centerY + 30);
@@ -332,7 +380,7 @@ function drawScoreOnTV() {
          ctx.font = '14px Arial';
          ctx.fillStyle = '#FF4500'; // 주황색
          ctx.fillText(`FINAL SCORE: ${score}`, centerX, centerY - 5);
-         ctx.fillText(`SPACE 눌러 재시작`, centerX, centerY + 15);
+         ctx.fillText(`ACTION 눌러 재시작`, centerX, centerY + 15);
     } else if (gameStatus === 'SUCCESS') { // 성공 상태 표시
          ctx.font = '14px Arial';
          ctx.fillStyle = '#00FFFF'; // 밝은 파란색
@@ -430,7 +478,6 @@ function gameLoop() {
     checkAppleCollision(); 
         
     // 11. 타이머 업데이트 및 게임 오버 체크
-    // 이 조건문 덕분에 gameStatus가 'PLAYING'이 아닐 때 (즉, 'GAME_OVER'나 'SUCCESS'일 때) gameTime이 감소하지 않아 타이머가 멈춥니다.
     if (gameStatus === 'PLAYING') {
         gameTime--;
         if (gameTime <= 0) {
@@ -443,9 +490,7 @@ function gameLoop() {
             // 게임 오버 시 캐릭터 이동을 막기 위해 dx/dy를 0으로 설정
             player.dx = 0;
             player.dy = 0;
-            gameStatus = 'TITLE';
-            // gameStatus = 'PLAYING'; <--- 삭제됨
-            // interactionMessage.timer = 0; <--- 삭제됨
+            // gameStatus = 'TITLE'; <--- 삭제됨
         }
     }
         
@@ -472,8 +517,11 @@ const checkStart = () => {
     if (imagesLoaded === totalImages) {
         console.log("모든 이미지가 로드되었습니다. 게임 시작!");
         
+        // 💡 [추가] 이미지 로드 후 터치 컨트롤 이벤트 설정
+        handleTouchControls(); 
+        
         // 초기 TITLE 상태에서 TV로 이동하도록 메시지 표시
-        interactionMessage.text = "TV에 가까이 가서 SPACE를 눌러 게임을 시작하세요!";
+        interactionMessage.text = "TV에 가까이 가서 SPACE/ACTION을 눌러 게임을 시작하세요!";
         interactionMessage.visible = true;
         interactionMessage.timer = 0; 
         
