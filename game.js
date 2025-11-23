@@ -180,44 +180,36 @@ function createSingleApple() {
 
 
 function handleInput() {
-    // TITLE, GAME_OVER, SUCCESS 상태에서는 이동을 막습니다. 
-    if (gameStatus === 'GAME_OVER' || gameStatus === 'SUCCESS') { 
-        player.dx = 0;
-        player.dy = 0;
-    } else {
-        // TITLE 또는 PLAYING 상태에서는 이동 허용
-        player.dx = 0;
-        player.dy = 0;
+    // 💡 [수정] 게임 상태와 관계없이 이동 입력을 처리합니다.
+    player.dx = 0;
+    player.dy = 0;
 
-        // 💡 [수정] 키보드 입력과 모바일 입력 모두 확인
-        if (keys['ArrowUp'] || mobileKeys['ArrowUp']) {
-            player.dy = -player.speed;
-            player.direction = 'back';
-        } else if (keys['ArrowDown'] || mobileKeys['ArrowDown']) {
-            player.dy = player.speed;
-            player.direction = 'front';
-        }
+    // 키보드 입력과 모바일 입력 모두 확인
+    if (keys['ArrowUp'] || mobileKeys['ArrowUp']) {
+        player.dy = -player.speed;
+        player.direction = 'back';
+    } else if (keys['ArrowDown'] || mobileKeys['ArrowDown']) {
+        player.dy = player.speed;
+        player.direction = 'front';
+    }
 
-        if (keys['ArrowLeft'] || mobileKeys['ArrowLeft']) {
-            player.dx = -player.speed;
-            player.direction = 'left';
-        } else if (keys['ArrowRight'] || mobileKeys['ArrowRight']) {
-            player.dx = player.speed;
-            player.direction = 'right';
-        }
+    if (keys['ArrowLeft'] || mobileKeys['ArrowLeft']) {
+        player.dx = -player.speed;
+        player.direction = 'left';
+    } else if (keys['ArrowRight'] || mobileKeys['ArrowRight']) {
+        player.dx = player.speed;
+        player.direction = 'right';
     }
     
-    // 스페이스 바 상호작용 처리 (키보드는 checkInteraction()을 여기서 호출)
+    // 스페이스 바 상호작용 처리 (키보드)
     if (keys['Space']) { 
         checkInteraction();
     }
     
-    // 💡 [수정] 키보드 스페이스바 입력은 프레임당 한 번만 처리되도록 초기화
+    // 키보드 스페이스바 입력은 프레임당 한 번만 처리되도록 초기화
     keys['Space'] = false; 
     
-    // 💡 [추가] 모바일 스페이스바 입력은 터치 이벤트에서 처리하므로, 여기서 바로 초기화
-    // (터치 이벤트는 startHandler에서 checkInteraction()을 호출하고, endHandler에서 mobileKeys['Space']를 false로 만듦)
-    // 따라서, mobileKeys['Space']는 별도로 초기화하지 않고 터치 이벤트에 맡깁니다.
+    // 모바일 스페이스바 입력은 터치 이벤트에 맡깁니다.
 }
 
 // 플레이어와 TV 간의 상호작용 확인 함수
@@ -313,11 +305,9 @@ function checkAppleCollision() {
                 interactionMessage.text = `🎉 축하합니다! 목표 점수 ${SUCCESS_SCORE}점 달성! 티비가 기뻐하고있어요!`;
                 interactionMessage.visible = true;
                 interactionMessage.timer = 300; 
-                player.dx = 0;
-                player.dy = 0;
-                // 💡 [수정] 성공 후 TITLE 상태로 즉시 변경하지 않음. SUCCESS 상태를 유지하여 메시지를 표시하고, 
-                // TV 상호작용 시 TITLE -> PLAYING으로 전환됨. (이전 코드에서 TITLE로 바꾼 줄은 제거했습니다.)
-                return; 
+                // player.dx = 0; player.dy = 0; <--- 이동 가능하도록 제거
+                // gameStatus = 'TITLE'; <--- TITLE로 바로 전환하지 않고 SUCCESS 상태 유지
+                return;
             }
             
             // 사과를 먹을 때마다 새 사과 1개 리젠
@@ -489,10 +479,8 @@ function gameLoop() {
             interactionMessage.visible = true;
             interactionMessage.timer = 300; 
             
-            // 게임 오버 시 캐릭터 이동을 막기 위해 dx/dy를 0으로 설정
-            player.dx = 0;
-            player.dy = 0;
-            // gameStatus = 'TITLE'; <--- 삭제됨
+            // player.dx = 0; player.dy = 0; <--- 이동 가능하도록 제거
+            gameStatus = 'TITLE';
         }
     }
         
