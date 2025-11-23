@@ -17,11 +17,60 @@
             border: 2px solid #ffffff;
             background: #101010;
         }
+        #controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    user-select: none; /* 터치 시 텍스트 선택 방지 */
+}
+
+.dpad-button, #action-button {
+    width: 60px;
+    height: 60px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: 2px solid white;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    position: absolute;
+    touch-action: manipulation; /* 스크롤 방지 */
+}
+
+/* 방향 버튼 위치 */
+#up-button { top: 0; left: 60px; }
+#down-button { top: 120px; left: 60px; }
+#left-button { top: 60px; left: 0; }
+#right-button { top: 60px; left: 120px; }
+
+/* 액션 버튼 위치 (화면 오른쪽) */
+#action-button {
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    width: 80px;
+    height: 80px;
+    border-radius: 50%; /* 원형 버튼 */
+    font-size: 1.2em;
+    position: fixed; /* 캔버스 크기에 관계없이 고정 */
+    bottom: 50px;
+    left: auto;
+}
     </style>
 </head>
 <body>
+    
     <canvas id="gameCanvas" width="800" height="600"></canvas>
 
     <script src="game.js"></script>
+    <div id="controls">
+    <div id="up-button" class="dpad-button" data-key="ArrowUp">⬆</div>
+    <div id="down-button" class="dpad-button" data-key="ArrowDown">⬇</div>
+    <div id="left-button" class="dpad-button" data-key="ArrowLeft">⬅</div>
+    <div id="right-button" class="dpad-button" data-key="ArrowRight">➡</div>
+</div>
+<div id="action-button" data-key="Space">ACTION</div>
 </body>
 </html>
