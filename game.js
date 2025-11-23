@@ -82,14 +82,23 @@ let gameStatus = 'TITLE'; // 'TITLE', 'PLAYING', 'GAME_OVER', 'SUCCESS'
 // 9. 키보드 상태 객체
 let keys = {};
 
-// 💡 [추가] 모바일 버튼 상태
+// 💡 [수정] 모바일 조이스틱 및 액션 버튼 상태 (D-pad 대신 조이스틱 상태 사용)
 let mobileKeys = {
-    'ArrowUp': false,
-    'ArrowDown': false,
-    'ArrowLeft': false,
-    'ArrowRight': false,
     'Space': false
 };
+
+// 💡 [추가] 조이스틱 관련 상태 및 상수
+let joystick = {
+    active: false,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    touchId: null // 멀티터치 방지
+};
+const MAX_JOYSTICK_DISTANCE = 45; // 스틱이 움직일 수 있는 최대 거리 (픽셀)
+
+// =========================================================
 
 // =========================================================
 // 10. 입력 처리 (이벤트 리스너)
@@ -104,37 +113,113 @@ document.addEventListener('keyup', (e) => {
     keys[e.code] = false;
 });
 
-// 💡 [수정] 모바일 터치 입력 처리 (터치 시 스크롤/줌 방지 강화)
+// 💡 [수정] D-pad 대신 조이스틱 및 액션 버튼 터치 처리
 const handleTouchControls = () => {
-    const buttons = document.querySelectorAll('.dpad-button, #action-button');
+    const joystickContainer = document.getElementById('joystick-container');
+    const joystickStick = document.getElementById('joystick-stick');
+    const actionButton = document.getElementById('action-button');
 
-    buttons.forEach(button => {
-        const key = button.getAttribute('data-key');
-        
-        const startHandler = (e) => {
-            // 터치 시작 시 브라우저 기본 동작(스크롤, 줌)을 막아 터치 영역 문제를 해결
+    // ----------------------------------------------------
+    // 1. 액션 버튼 (Space 역할) 처리
+    // ----------------------------------------------------
+    if (actionButton) {
+        const startAction = (e) => {
             e.preventDefault(); 
-            mobileKeys[key] = true;
-            // Space 키는 누른 순간 checkInteraction()을 실행
-            if (key === 'Space') {
-                checkInteraction();
-            }
+            mobileKeys['Space'] = true;
+            checkInteraction(); // Action 버튼은 누른 순간 상호작용
         };
-
-        const endHandler = (e) => {
+        const endAction = (e) => {
             e.preventDefault();
-            mobileKeys[key] = false;
+            mobileKeys['Space'] = false;
         };
+        actionButton.addEventListener('touchstart', startAction);
+        actionButton.addEventListener('touchend', endAction);
+        actionButton.addEventListener('mousedown', startAction);
+        actionButton.addEventListener('mouseup', endAction);
+    }
+
+    // ----------------------------------------------------
+    // 2. 조이스틱 처리
+    // ----------------------------------------------------
+
+    const getTouchPos = (e) => {
+        // 현재 조이스틱 터치를 찾거나, 첫 번째 터치를 사용
+        const touch = Array.from(e.changedTouches).find(t => t.identifier === joystick.touchId) || e.changedTouches[0];
+        if (touch) {
+             // 캔버스 좌표가 아닌 화면 뷰포트 좌표를 사용합니다.
+            return { x: touch.clientX, y: touch.clientY, id: touch.identifier };
+        }
+        return null;
+    };
+    
+    // 터치 시작
+    joystickContainer.addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        if (joystick.active) return; // 이미 활성화되어 있으면 무시 (멀티터치)
+
+        const touch = getTouchPos(e);
+        if (touch) {
+            joystick.active = true;
+            joystick.touchId = touch.id;
+            joystick.startX = touch.x;
+            joystick.startY = touch.y;
+            joystick.currentX = touch.x;
+            joystick.currentY = touch.y;
+        }
+    });
+
+    // 터치 이동
+    window.addEventListener('touchmove', (e) => { // window에서 터치 이동 감지 (손가락이 컨테이너를 벗어나도 추적)
+        if (!joystick.active) return;
         
-        // 터치 이벤트
-        button.addEventListener('touchstart', startHandler);
-        button.addEventListener('touchend', endHandler);
-        button.addEventListener('touchcancel', endHandler);
+        const touch = getTouchPos(e);
+        if (touch) {
+            e.preventDefault(); 
+            joystick.currentX = touch.x;
+            joystick.currentY = touch.y;
+        }
+    });
+
+    // 터치 종료
+    const resetJoystick = (e) => {
+        if (!joystick.active) return;
         
-        // 마우스 클릭 (PC 테스트용)
-        button.addEventListener('mousedown', startHandler);
-        button.addEventListener('mouseup', endHandler);
-        button.addEventListener('mouseleave', endHandler); 
+        // 현재 터치 ID에 해당하는 터치만 종료 처리
+        const touchEnded = Array.from(e.changedTouches).some(t => t.identifier === joystick.touchId);
+        if (touchEnded) {
+            e.preventDefault();
+            joystick.active = false;
+            joystick.touchId = null;
+
+            // 스틱을 중앙으로 복귀
+            joystickStick.style.transform = 'translate(-50%, -50%)';
+        }
+    };
+    window.addEventListener('touchend', resetJoystick);
+    window.addEventListener('touchcancel', resetJoystick);
+
+    // 마우스 이벤트 (PC 테스트용)
+    joystickContainer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        joystick.active = true;
+        joystick.startX = e.clientX;
+        joystick.startY = e.clientY;
+        joystick.currentX = e.clientX;
+        joystick.currentY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!joystick.active) return;
+        e.preventDefault();
+        joystick.currentX = e.clientX;
+        joystick.currentY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if (!joystick.active) return;
+        e.preventDefault();
+        joystick.active = false;
+        joystickStick.style.transform = 'translate(-50%, -50%)';
     });
 };
 
@@ -179,37 +264,85 @@ function createSingleApple() {
 }
 
 
+// 💡 [수정] handleInput 함수 (조이스틱 로직 반영)
 function handleInput() {
-    // 💡 [수정] 게임 상태와 관계없이 이동 입력을 처리합니다.
     player.dx = 0;
     player.dy = 0;
+    
+    // ----------------------------------------------------
+    // 1. 조이스틱 입력 처리
+    // ----------------------------------------------------
+    if (joystick.active) {
+        const dxRaw = joystick.currentX - joystick.startX;
+        const dyRaw = joystick.currentY - joystick.startY;
+        const distance = Math.sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
+        
+        let moveX, moveY;
 
-    // 키보드 입력과 모바일 입력 모두 확인
-    if (keys['ArrowUp'] || mobileKeys['ArrowUp']) {
-        player.dy = -player.speed;
-        player.direction = 'back';
-    } else if (keys['ArrowDown'] || mobileKeys['ArrowDown']) {
-        player.dy = player.speed;
-        player.direction = 'front';
+        if (distance > MAX_JOYSTICK_DISTANCE) {
+            // 최대 거리를 초과하면 스틱을 원의 경계에 고정
+            const angle = Math.atan2(dyRaw, dxRaw);
+            moveX = Math.cos(angle) * MAX_JOYSTICK_DISTANCE;
+            moveY = Math.sin(angle) * MAX_JOYSTICK_DISTANCE;
+            
+            // 이동 속도는 최대 속도로 설정
+            player.dx = Math.cos(angle) * player.speed;
+            player.dy = Math.sin(angle) * player.speed;
+        } else {
+            // 최대 거리 내에서는 터치 위치와 동일하게 스틱 이동
+            moveX = dxRaw;
+            moveY = dyRaw;
+
+            // 이동 속도는 이동 거리에 비례 (부드러운 조작감)
+            const speedFactor = distance / MAX_JOYSTICK_DISTANCE;
+            player.dx = (dxRaw / distance) * player.speed * speedFactor;
+            player.dy = (dyRaw / distance) * player.speed * speedFactor;
+        }
+        
+        // 스틱의 CSS 위치 업데이트 (조작 피드백)
+        const joystickStick = document.getElementById('joystick-stick');
+        if (joystickStick) {
+            joystickStick.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+        }
+
+        // 플레이어 방향 업데이트
+        if (Math.abs(player.dx) > Math.abs(player.dy)) {
+            player.direction = player.dx > 0 ? 'right' : 'left';
+        } else if (Math.abs(player.dy) > 0) {
+            player.direction = player.dy > 0 ? 'front' : 'back';
+        }
     }
 
-    if (keys['ArrowLeft'] || mobileKeys['ArrowLeft']) {
-        player.dx = -player.speed;
-        player.direction = 'left';
-    } else if (keys['ArrowRight'] || mobileKeys['ArrowRight']) {
-        player.dx = player.speed;
-        player.direction = 'right';
+    // ----------------------------------------------------
+    // 2. 키보드 입력 처리 (조이스틱이 활성화되지 않았을 때만 키보드 이동 반영)
+    // ----------------------------------------------------
+    if (!joystick.active) {
+        if (keys['ArrowUp']) {
+            player.dy = -player.speed;
+            player.direction = 'back';
+        } else if (keys['ArrowDown']) {
+            player.dy = player.speed;
+            player.direction = 'front';
+        }
+
+        if (keys['ArrowLeft']) {
+            player.dx = -player.speed;
+            player.direction = 'left';
+        } else if (keys['ArrowRight']) {
+            player.dx = player.speed;
+            player.direction = 'right';
+        }
     }
     
-    // 스페이스 바 상호작용 처리 (키보드)
+    // ----------------------------------------------------
+    // 3. 액션 버튼 (Space) 처리
+    // ----------------------------------------------------
     if (keys['Space']) { 
         checkInteraction();
     }
     
     // 키보드 스페이스바 입력은 프레임당 한 번만 처리되도록 초기화
     keys['Space'] = false; 
-    
-    // 모바일 스페이스바 입력은 터치 이벤트에 맡깁니다.
 }
 
 // 플레이어와 TV 간의 상호작용 확인 함수
