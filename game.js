@@ -264,7 +264,7 @@ function createSingleApple() {
 }
 
 
-// 💡 [수정] handleInput 함수 (조이스틱 로직 반영)
+// 💡 [수정] handleInput 함수 (조이스틱 로직 개선 및 속도 제한)
 function handleInput() {
     player.dx = 0;
     player.dy = 0;
@@ -275,68 +275,85 @@ function handleInput() {
     if (joystick.active) {
         const dxRaw = joystick.currentX - joystick.startX;
         const dyRaw = joystick.currentY - joystick.startY;
-        const distance = Math.sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
+        let distance = Math.sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
         
         let moveX, moveY;
 
+        // 최대 조이스틱 이동 거리를 초과하지 않도록 거리 제한
         if (distance > MAX_JOYSTICK_DISTANCE) {
-            // 최대 거리를 초과하면 스틱을 원의 경계에 고정
+            distance = MAX_JOYSTICK_DISTANCE; // 거리 제한
             const angle = Math.atan2(dyRaw, dxRaw);
             moveX = Math.cos(angle) * MAX_JOYSTICK_DISTANCE;
             moveY = Math.sin(angle) * MAX_JOYSTICK_DISTANCE;
-            
-            // 이동 속도는 최대 속도로 설정
-            player.dx = Math.cos(angle) * player.speed;
-            player.dy = Math.sin(angle) * player.speed;
         } else {
-            // 최대 거리 내에서는 터치 위치와 동일하게 스틱 이동
             moveX = dxRaw;
             moveY = dyRaw;
-
-            // 이동 속도는 이동 거리에 비례 (부드러운 조작감)
-            const speedFactor = distance / MAX_JOYSTICK_DISTANCE;
-            player.dx = (dxRaw / distance) * player.speed * speedFactor;
-            player.dy = (dyRaw / distance) * player.speed * speedFactor;
         }
         
+        // 이동 거리에 비례하여 속도(dx, dy)를 계산하되, 최대값은 player.speed로 제한
+        // moveX, moveY는 이미 MAX_JOYSTICK_DISTANCE 내에 있습니다.
+        const speedFactor = distance / MAX_JOYSTICK_DISTANCE;
+        
+        // 💡 [핵심 수정] 속도를 정규화된 벡터에 player.speed와 speedFactor를 곱하여 계산
+        if (distance > 0) {
+            const unitVectorX = moveX / distance;
+            const unitVectorY = moveY / distance;
+            
+            player.dx = unitVectorX * player.speed * speedFactor;
+            player.dy = unitVectorY * player.speed * speedFactor;
+        } else {
+             // 터치했지만 움직이지 않은 경우 (distance=0)
+             player.dx = 0;
+             player.dy = 0;
+        }
+
+
         // 스틱의 CSS 위치 업데이트 (조작 피드백)
         const joystickStick = document.getElementById('joystick-stick');
         if (joystickStick) {
+            // 스틱은 항상 중앙(50%, 50%)을 기준으로 움직입니다.
             joystickStick.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
         }
 
         // 플레이어 방향 업데이트
-        if (Math.abs(player.dx) > Math.abs(player.dy)) {
-            player.direction = player.dx > 0 ? 'right' : 'left';
-        } else if (Math.abs(player.dy) > 0) {
-            player.direction = player.dy > 0 ? 'front' : 'back';
+        if (Math.abs(player.dx) > 0 || Math.abs(player.dy) > 0) {
+            if (Math.abs(player.dx) > Math.abs(player.dy)) {
+                player.direction = player.dx > 0 ? 'right' : 'left';
+            } else {
+                player.direction = player.dy > 0 ? 'front' : 'back';
+            }
         }
-    }
-
-    // ----------------------------------------------------
-    // 2. 키보드 입력 처리 (조이스틱이 활성화되지 않았을 때만 키보드 이동 반영)
-    // ----------------------------------------------------
-    if (!joystick.active) {
-        if (keys['ArrowUp']) {
-            player.dy = -player.speed;
-            player.direction = 'back';
-        } else if (keys['ArrowDown']) {
-            player.dy = player.speed;
-            player.direction = 'front';
+        
+        // 조이스틱이 활성화되면 키보드 입력을 무시하고 바로 함수를 종료합니다.
+        // 이렇게 해야 키보드 입력이 조이스틱 이동을 덮어쓰는 것을 방지합니다.
+        // 다만 Space 입력은 키보드에서도 처리해야 하므로, Space 키보드 입력 처리만 남겨둡니다.
+        if (keys['Space']) { 
+            checkInteraction();
         }
-
-        if (keys['ArrowLeft']) {
-            player.dx = -player.speed;
-            player.direction = 'left';
-        } else if (keys['ArrowRight']) {
-            player.dx = player.speed;
-            player.direction = 'right';
-        }
+        keys['Space'] = false; 
+        return; // 조이스틱 입력 처리 후 종료
     }
     
     // ----------------------------------------------------
-    // 3. 액션 버튼 (Space) 처리
+    // 2. 키보드 입력 처리 (조이스틱이 비활성화되었을 때만 실행)
     // ----------------------------------------------------
+    if (keys['ArrowUp']) {
+        player.dy = -player.speed;
+        player.direction = 'back';
+    } else if (keys['ArrowDown']) {
+        player.dy = player.speed;
+        player.direction = 'front';
+    }
+
+    if (keys['ArrowLeft']) {
+        player.dx = -player.speed;
+        player.direction = 'left';
+    } else if (keys['ArrowRight']) {
+        player.dx = player.speed;
+        player.direction = 'right';
+    }
+    
+    // 키보드 Space 처리 (조이스틱 활성화 여부와 관계없이 처리될 수 있지만, 위에서 이미 처리했습니다.)
     if (keys['Space']) { 
         checkInteraction();
     }
